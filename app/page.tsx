@@ -1,8 +1,52 @@
 "use client";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 export default function Home() {
   const [items, setItems] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [categories, setCategories] = useState([]);
+  const [filteredItems, setFilteredItems] = useState([]);
+
+  useEffect(() => {
+    console.log("items", items);
+    if (selectedCategory == "All") {
+      setFilteredItems(items);
+    } else {
+      setFilteredItems(
+        // @ts-ignore
+        items.filter((item) => item.category == selectedCategory)
+      );
+    }
+  }, [selectedCategory, items]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/category`,
+          {
+            method: "GET",
+            headers: {
+              Accept: "application/json, text/plain, */*",
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response.status !== 200) {
+          console.log("error", response);
+          throw new Error("Failed to fetch categories");
+        }
+
+        const data = await response.json();
+        setCategories(data.unique_categories || []);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -43,7 +87,14 @@ export default function Home() {
             Accept: "application/json, text/plain, */*",
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ filters: { name: formData.get("name") } }),
+          body: JSON.stringify({
+            filters: {
+              name: formData.get("name"),
+              ...(selectedCategory !== "All"
+                ? { category: selectedCategory }
+                : {}),
+            },
+          }),
         }
       );
 
@@ -53,7 +104,6 @@ export default function Home() {
       }
 
       const data = await response.json();
-      console.log(data);
       setItems(data.items);
     } catch (e) {}
   }
@@ -103,9 +153,34 @@ export default function Home() {
         </button>
       </form>
       <div className="border p-4 w-full">
-        {items.map((item, index) => (
-          <div key={index}>
-            <div></div>
+        <select
+          className="py-2"
+          value={selectedCategory}
+          onChange={(e) => {
+            setSelectedCategory(e.target.value);
+          }}
+        >
+          {categories.map((category: string, index) => (
+            <option key={index} value={category}>
+              {category}
+            </option>
+          ))}
+          11
+          <option value="All">All</option>
+        </select>
+        {filteredItems.map((item, index) => (
+          <div
+            key={index}
+            className="grid grid-cols-4 py-2 border-y justify-between"
+          >
+            {/* @ts-ignore */}
+            <div>{item.item_name}</div>
+            {/* @ts-ignore */}
+            <div>{item.category}</div>
+            {/* @ts-ignore */}
+            <div>{item.price}</div>
+            {/* @ts-ignore */}
+            <div>{item.last_updated_at}</div>
           </div>
         ))}
       </div>
